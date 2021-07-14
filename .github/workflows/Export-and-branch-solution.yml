@@ -29,7 +29,7 @@ jobs:
         
              
     - name: Test publish-solution action with username/password
-      uses: microsoft/powerplatform-actions/publish-solution@V0
+      uses: microsoft/powerplatform-actions/publish-solution
       with:
         environment-url: 'https://org8afc7726.crm.dynamics.com/'
         user-name: 'admin@M365x639218.onmicrosoft.com'
