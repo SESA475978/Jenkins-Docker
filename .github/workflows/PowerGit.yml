@@ -1,0 +1,29 @@
+name: Export-and-branch-solution
+# Export solution from DEV environment
+#  unpack it and prepare, commit and push a git branch with the changes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  Backup_Environment:
+    runs-on: windows-latest
+    env:
+      RUNNER_DEBUG: 1
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: true
+
+    - name: backup-environment action
+      uses: microsoft/powerplatform-actions/backup-environment@v0
+      with:
+        environment-url: 'https://org8afc7726.crm.dynamics.com/'
+        user-name: 'admin@M365x639218.onmicrosoft.com'
+        password-secret: ${{ secrets.password }}
+        backup-label: Backup_Git
