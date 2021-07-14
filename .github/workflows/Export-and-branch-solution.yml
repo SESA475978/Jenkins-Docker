@@ -1,88 +1,53 @@
-name: CI/CD for Canvas Apps
-trigger: none
+name: Export-and-branch-solution
+# Export solution from DEV environment
+#  unpack it and prepare, commit and push a git branch with the changes
 
-resources:
-  repositories:
-    - repository: Ghosh
-      type: git
-      name: ajighosh/Ghosh
-      ref: refs/heads/main
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-stages:
-  - stage: export_solution
-    displayName: Export Solution
-    variables:
-      SolutionName: 'DevOps1'
-      SolutionOutput: 'DevOps1.zip'
-    jobs:
-    - job: export_solution
-      displayName: Export Solution
-      pool:
-        vmImage: vs2017-win2016
-         steps:
-  - checkout: Ghosh
-    persistCredentials: True
-  - task: PowerPlatformToolInstaller@0
-    displayName: 'Power Platform Tool Installer '
-  - task: PowerPlatformWhoAmi@0
-    displayName: 'Power Platform WhoAmI '
-    inputs:
-      PowerPlatformEnvironment: b8c9a973-106b-400b-a3e4-009381a8779b
-  - task: PowerPlatformPublishCustomizations@0
-    displayName: 'Power Platform Publish Customizations '
-    inputs:
-      PowerPlatformEnvironment: b8c9a973-106b-400b-a3e4-009381a8779b
-  - task: PowerPlatformExportSolution@0
-    displayName: 'Power Platform Export Solution '
-    inputs:
-      PowerPlatformEnvironment: b8c9a973-106b-400b-a3e4-009381a8779b
-      SolutionName: $(SolutionName)
-      SolutionOutputFile: $(Build.ArtifactStagingDirectory)\$(SolutionName)_Unmanaged.zip
-  - task: PowerPlatformChecker@0
-    displayName: 'Power Platform Checker '
-    inputs:
-      PowerPlatformSPN: 12391656-1beb-41af-8849-591f7429ba8b
-      FilesToAnalyze: $(Build.ArtifactStagingDirectory)\$(SolutionName)_Unmanaged.zip
-      RuleSet: 0ad12346-e108-40b8-a956-9a8f95ea18c9
-  - task: PowerPlatformSetSolutionVersion@0
-    displayName: 'Power Platform Set Solution Version '
-    inputs:
-      PowerPlatformEnvironment: b8c9a973-106b-400b-a3e4-009381a8779b
-      SolutionName: $(SolutionName)
-      SolutionVersionNumber: $(Build.BuildNumber)
-  - task: PowerPlatformExportSolution@0
-    displayName: 'Power Platform Export Solution '
-    inputs:
-      PowerPlatformEnvironment: b8c9a973-106b-400b-a3e4-009381a8779b
-      SolutionName: $(SolutionName)
-      SolutionOutputFile: '  $(Build.ArtifactStagingDirectory)\$(SolutionName)_managed.zip'
-      Managed: true
-  - task: PowerPlatformUnpackSolution@0
-    displayName: 'Power Platform Unpack Solution '
-    inputs:
-      SolutionInputFile: $(Build.ArtifactStagingDirectory)\$(SolutionName)_Unmanaged.zip
-      SolutionTargetFolder: $(Build.SourcesDirectory)\$(SolutionName)
-  - task: CmdLine@2
-    displayName: Command Line Script
-    inputs:
-      script: >-
-        echo commit all changes
+jobs:
+  export-from-dev:
+    runs-on: windows-latest
+    env:
+      RUNNER_DEBUG: 1
 
-        git config user.email "SESA475978@dev.azure.com"
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: true
 
-        git config user.name "Automatic Build"
+    - name: Who-am-i action
+      uses: microsoft/powerplatform-actions/who-am-i@v0
+      with:
+        environment-url: 'https://org8afc7726.crm.dynamics.com/'
+        user-name: 'admin@M365x639218.onmicrosoft.com'
+        password-secret: ${{ secrets.password }}
 
-        git checkout main
+    - name: Export-solution action
+      uses: microsoft/powerplatform-actions/export-solution@v0
+      with:
+        environment-url: 'https://org8afc7726.crm.dynamics.com/'
+        user-name: 'admin@M365x639218.onmicrosoft.com'
+        password-secret: ${{ secrets.password }}
+        solution-name: Ghosh
+        solution-output-file: out/exported/Ghosh.zip
 
-        git add --all
+    - name: Un-pack-solution action
+      uses: microsoft/powerplatform-actions/unpack-solution@v0
+      with:
+        solution-file: out/exported/Ghosh.zip
+        solution-folder: out/solutions/Ghosh
+        solution-type: 'Unmanaged'
+        overwrite-files: true
 
-        git commit -m "solution init"
-
-        echo push code to new repo
-
-        git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin main
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish Artifact: DevOps'
-    inputs:
-      ArtifactName: DevOps
-...
+    - name: Branch-solution, prepare it for a PullRequest
+      uses: microsoft/powerplatform-actions/branch-solution@v0
+      with:
+        solution-folder: out/solutions/Ghosh
+        solution-target-folder: solutions/Ghosh
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        allow-empty-commit: true
