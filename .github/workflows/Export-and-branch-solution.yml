@@ -37,7 +37,7 @@ jobs:
         solution-output-file: out/exported/Ghosh.zip
 
     - name: Un-pack-solution action
-      uses: microsoft/powerplatform-actionsunpack-solution@v0
+      uses: microsoft/powerplatform-actions/unpack-solution@v0
       with:
         solution-file: out/exported/Ghosh.zip
         solution-folder: out/solutions/Ghosh
